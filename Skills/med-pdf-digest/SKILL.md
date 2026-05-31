@@ -9,6 +9,8 @@ Transforms dense clinical documents into exam-ready, clinically actionable study
 
 **Core philosophy: Simplify without skipping. Every detail matters, but not every detail needs the same format.**
 
+> **Design mandate:** Before generating any flowchart, mind map, HTML output, or PDF layout, read `references/design-system.md`. It is the single source of truth for all visual decisions — color tokens, typography scale, spacing, card layout, flowchart node vocabulary, mind map hierarchy, and anti-patterns. Do not improvise visual choices; reference the design system.
+
 ---
 
 ## The Six Output Pillars
@@ -124,27 +126,30 @@ Process the extracted JSON to produce each of the six output pillars. Generate t
 - Staged approaches (Stage 1 leads to Stage 2 leads to Stage 3)
 - Differential diagnosis trees with discriminator-based branching
 
-**Generation method:** Use Mermaid flowchart syntax. Each flowchart must:
-- Have a clear **trigger** (what clinical scenario starts this algorithm?)
-- Use **diamond nodes** `{}` for decision points
-- Use **rounded nodes** `()` for actions
-- Include **red-flag branches** where appropriate (danger signs, don't-miss conditions)
-- End with clear **outcomes and endpoints**
-- Cap at **15 nodes per flowchart** — if the algorithm is more complex, split into sub-flowcharts linked by reference
+**Generation method:** Use Mermaid flowchart syntax. Read `references/design-system.md → Section 5` for the complete node vocabulary, classDef stylesheet block, and visual rules. Every flowchart must:
+- Begin with the standard `%%{init: ...}%%` theme block and `classDef` declarations from the design system
+- Have a clear **trigger** annotated as `%% Title: ...` at the top
+- Use **diamond nodes** `{text}:::decision` for decision points
+- Use **stadium/pill nodes** `([text]):::trigger` for entry points
+- Use **emergency nodes** `[[text]]:::emergency` for don't-miss branches
+- Label every Yes/No edge: `-->|Yes|` and `-->|No|`
+- End with clearly styled outcome nodes (`:::positive` or `:::emergency`)
+- Cap at **15 nodes per flowchart** — split into sub-flowcharts linked by `%% → continues in [name]` comment if needed
+- Use `flowchart LR` for > 8 nodes, `flowchart TD` for ≤ 8
 
 Read `references/flowchart-patterns.md` for five clinical flowchart templates: diagnostic workup, treatment escalation, emergency management, screening algorithm, and differential diagnosis tree.
 
-**Render Mermaid to PNG** using the charts skill (Playwright+CSS rendering for Mermaid diagrams).
+**Render Mermaid to PNG** using the charts skill (Playwright+CSS rendering for Mermaid diagrams). Target render resolution: 2x (retina-ready).
 
 **Naming convention:** `flowchart_[topic]_[type].png`
 
-**Color system (consistent across all flowcharts in one digest):**
-- Red (#ff6b6b): Emergency, danger, don't-miss
-- Yellow (#ffd43b): Decision points
-- Green (#51cf66): Confirmed diagnosis, positive outcome
-- Blue (#74c0fc): Investigation, process step
-- Purple (#cc5de8): Referral, specialist input
-- Gray (#dee2e6): Ruled out, not indicated
+**Color system:** Use the OKLCH clinical semantic tokens from `references/design-system.md → Section 1`. Never use raw hex values in flowchart node fills — always reference the classDef classes:
+- `:::emergency` — don't-miss, danger, activate emergency
+- `:::decision`  — Yes/No branch points (decision diamonds)
+- `:::positive`  — confirmed diagnosis, goal achieved
+- `:::action`    — investigation, treatment, process step
+- `:::referral`  — specialist input, escalation
+- `:::excluded`  — ruled out, not indicated
 
 ---
 
@@ -152,24 +157,29 @@ Read `references/flowchart-patterns.md` for five clinical flowchart templates: d
 
 **What to mind-map:** Topic hierarchies, classification systems, anatomy/physiology relationships, drug class organizations, disease feature groupings.
 
-**Generation method:** Use Playwright+CSS mind map rendering (charts skill).
+**Generation method:** Use Playwright+CSS mind map rendering (charts skill). Read `references/design-system.md → Section 6` before generating. That section contains the full CSS, node class specifications, connector rules, and anti-pattern ban list.
 
 **Mind map structure rules:**
-- **Central node:** The main topic (e.g., "Heart Failure")
-- **Level 1 branches:** Major categories (Etiology, Diagnosis, Treatment, Complications)
-- **Level 2 branches:** Sub-categories (within Etiology: Ischemic, Valvular, Hypertensive)
-- **Level 3 leaves:** Specific facts (within Ischemic: "MI leads to remodeling leads to systolic HF")
-- **No deeper than Level 3** — if Level 4 is needed, create a separate sub-map
+- **Level 0 — Central node:** The main topic (e.g., "Heart Failure") — brand accent color, bold, large
+- **Level 1 branches:** Major categories (Etiology, Diagnosis, Treatment, Complications) — colored by branch role per design system color table
+- **Level 2 branches:** Sub-categories (within Etiology: Ischemic, Valvular, Hypertensive) — lighter tint fill
+- **Level 3 leaves:** Specific facts — text only, no fill, `--color-ink-muted`
+- **No deeper than Level 3** — create a named sub-map (`mindmap_[topic]_[branch].png`) if Level 4 is needed
+- **Maximum 7 L1 branches** — split into multiple maps if exceeded
 
-**Color coding (consistent across all mind maps in one digest):**
-- Red: Emergency, critical, don't-miss
-- Orange: Warning, caution, contraindication
-- Blue: Diagnostic information
-- Green: Treatment and management
-- Purple: Classification and taxonomy
-- Gray: Background and context
+**Color coding:** Apply the branch-role semantic table from `references/design-system.md → Section 6`. Every color carries meaning — do not assign colors arbitrarily:
+- Etiology/Causes → Red hue
+- Pathophysiology → Orange hue
+- Diagnosis/Workup → Blue hue
+- Treatment/Management → Green hue
+- Complications → Purple hue
+- Classification/Types → Violet hue
+- Pharmacology → Teal hue
+- Epidemiology/Risk Factors → Gray hue
 
-**Naming convention:** `mindmap_[topic].png` or `mindmap_[topic]_[subcategory].png` for sub-maps
+**Anti-patterns:** See `references/design-system.md → Section 6 → Mind Map Anti-Patterns`. Key bans: no overlapping text on connectors, no all-caps node labels, no decorative color (every color must map to a semantic role), no more than 5 L2 items per L1 branch.
+
+**Naming convention:** `mindmap_[topic].png` or `mindmap_[topic]_[branch].png` for sub-maps
 
 ---
 
@@ -328,27 +338,28 @@ SECTION 6: SIMPLIFIED YET COMPLETE
 
 #### PDF Output Specifications
 
-Use the PDF skill's Report route (ReportLab) for generation.
+Read `references/design-system.md → Section 8` for the full ReportLab design specification including color tokens, ParagraphStyle definitions, the `draw_card()` function, and the cover page blueprint. The design system governs all PDF decisions — do not improvise.
 
-- Page size: A4
-- Margins: 20mm all sides
-- Section headers: 14pt bold, colored (each section gets a distinct color)
-- Body text: 10pt, 1.4 line spacing
-- Flowchart and mind map images: full-width, centered, with captions
-- Pearls and traps: bordered cards with distinct background colors
-- Atoms: compact table format where possible
-- Page numbers: bottom center
-- Continuous flow within each pillar (no page breaks between sub-sections)
-- Page break between major sections only
+**Summary of PDF layout rules:**
+- Page size: A4 (210mm × 297mm), margins 22mm all sides
+- Cover: deep navy-indigo gradient with white title, specialty eyebrow label, and pillar pill badges
+- Section headings: accent bar drawn via `draw_section_header()` + 16pt bold heading; each pillar has a distinct OKLCH-based color from the design system token set
+- Body text: 9.5pt Helvetica, leading 14pt
+- Cards (pearls, traps): drawn via `draw_card()` with 4pt accent strip + tinted background; no `border-left` tricks
+- Atoms: compact grid rows with category badge and high-yield star marker
+- Flowchart/mind map images: full-width (within margins), centered, with retina-quality render (2x PNG)
+- Image captions: 8pt Helvetica-Oblique, centered, `COLOR_INK_MUTED`
+- Page numbers: bottom center, `[N] / [Total]` format, `--color-ink-muted`
+- Continuous flow within each pillar section; page break before each new pillar
 - File name: `clinical_digest_[topic]_[date].pdf`
 
 ---
 
 #### HTML Output Specifications
 
-Generate a single, self-contained `.html` file. All images must be embedded as base64 data URIs so the file is portable and works offline. No external CSS or JS dependencies.
+Read `references/design-system.md → Section 7` for the complete CSS spec. All CSS must use the custom property tokens defined in `references/design-system.md → Sections 1-4`. Do not hard-code colors, font sizes, or spacing values.
 
-**HTML structure:**
+**Structure:**
 ```html
 <!DOCTYPE html>
 <html lang="en">
@@ -356,61 +367,56 @@ Generate a single, self-contained `.html` file. All images must be embedded as b
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>[Topic] — Clinical Digest</title>
+  <!-- Google Fonts: Inter + JetBrains Mono (see design-system.md §7) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
-    /* All styles inline — see CSS specifications below */
+    /* Paste full design-system.md §1-7 tokens + component styles here */
   </style>
 </head>
 <body>
   <header class="cover"> ... </header>
-  <nav class="toc"> ... </nav>
-  <main>
-    <section id="flowcharts"> ... </section>
-    <section id="mindmaps"> ... </section>
-    <section id="pearls"> ... </section>
-    <section id="traps"> ... </section>
-    <section id="atoms"> ... </section>
-    <section id="simplified"> ... </section>
-  </main>
+  <div class="layout">
+    <nav class="toc"> ... </nav>
+    <main>
+      <section id="flowcharts" class="pillar-section section--flowchart"> ... </section>
+      <section id="mindmaps"   class="pillar-section section--mindmap">   ... </section>
+      <section id="pearls"     class="pillar-section section--pearl">     ... </section>
+      <section id="traps"      class="pillar-section section--trap">      ... </section>
+      <section id="atoms"      class="pillar-section section--atom">      ... </section>
+      <section id="simplified" class="pillar-section section--simplified"> ... </section>
+    </main>
+  </div>
 </body>
 </html>
 ```
 
-**CSS specifications:**
-- Font: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif
-- Body: max-width 900px, margin 0 auto, padding 20px, line-height 1.6, color #1a1a2e
-- Cover header: gradient background (#1a1a2e to #16213e), white text, centered, padding 60px 20px
-- TOC: sticky sidebar on desktop (left), collapsible on mobile; links with smooth scroll
-- Section headers: 1.6rem bold, colored left border (5px), margin-top 3rem
-  - Flowcharts: #3498db (blue)
-  - Mind Maps: #9b59b6 (purple)
-  - Pearls: #e67e22 (orange)
-  - Traps: #e74c3c (red)
-  - Atoms: #2ecc71 (green)
-  - Simplified: #1abc9c (teal)
-- Images: max-width 100%, border-radius 8px, box-shadow 0 2px 8px rgba(0,0,0,0.1), centered
-- Pearl cards: border-left 4px solid #e67e22, background #fef9f3, padding 16px, border-radius 4px, margin 12px 0
-- Trap cards: border-left 4px solid #e74c3c, background #fef2f2, padding 16px, border-radius 4px, margin 12px 0
-- Atom entries: compact cards with category badge, subtle background (#f8f9fa), padding 10px 14px
-- Collapsible sections: each pillar section has a clickable header that toggles content visibility; use `<details><summary>` elements for native HTML collapsing without JavaScript
-- Responsive: single column on mobile (<768px), sidebar TOC on desktop (>=768px)
-- Print media: hide TOC sidebar, remove shadows, ensure images fit page width
-- File name: `clinical_digest_[topic]_[date].html`
+**Design rules (from design-system.md §7):**
+- Font: Inter 400/600/700 + JetBrains Mono — load from Google Fonts with preconnect
+- OKLCH color tokens throughout — paste the full `:root {}` block from the design system
+- Cover: deep navy-to-indigo gradient, white title with `letter-spacing: -0.03em`, teal specialty eyebrow, pillar pill badges
+- Layout: CSS Grid, `220px sidebar + 1fr main`, collapses to single column at 860px
+- TOC: sticky sidebar with pip dots colored per pillar, `transition: background 180ms ease-out`
+- Section headings: `grid-template-columns: 4px 1fr` accent strip pattern — no `border-left`
+- Cards (pearls, traps, atoms): `grid-template-columns: 4px 1fr`, tinted backgrounds, `box-shadow: var(--shadow-sm)`, hover lifts `translateY(-1px)` + `var(--shadow-md)`
+- Badges: pill-shaped, hue-tinted backgrounds with darker-hue text (not gray)
+- Images: `border-radius: var(--radius-lg)`, `box-shadow: var(--shadow-md)`, caption in `--color-ink-muted`
+- Motion: scroll-driven entrance (`animation-timeline: view()`) on `.pillar-section`; `prefers-reduced-motion` disables all animation
+- Interactive: `<details open>` for pillar collapse/expand; atom cross-refs as anchor links; floating "Back to Top" button after 300px scroll
+- No nested cards. No `z-index` arbitrary values. No all-caps body copy.
 
-**Image embedding:** Convert all rendered flowchart and mind map PNG images to base64 data URIs:
+**Image embedding:** Convert all flowchart/mind map PNGs to base64 data URIs for portability.
 ```python
 import base64
 with open(image_path, 'rb') as f:
     b64 = base64.b64encode(f.read()).decode('utf-8')
 data_uri = f'data:image/png;base64,{b64}'
 ```
-Embed as `<img src="{data_uri}" alt="..." />`.
+Wrap in `<figure class="visual-figure"><img src="{data_uri}" alt="..." /><figcaption>...</figcaption></figure>`.
 
-**HTML-specific interactive features:**
-- Each section is wrapped in `<details open>` so users can collapse/expand pillars
-- Atom cross-references use anchor links: `<a href="#atom-42">Atom #42</a>`
-- TOC links use anchor smooth-scroll: `<a href="#flowcharts">Flowcharts</a>`
-- Pearl and trap cards have subtle hover effects (transform, shadow) via CSS only
-- A "Back to Top" floating button appears after scrolling 300px (CSS + minimal inline JS)
+**Responsive:** Single column on mobile (< 860px); sticky sidebar on desktop; print media query hides TOC and removes shadows.
+
+**File name:** `clinical_digest_[topic]_[date].html`
 
 ---
 
@@ -559,9 +565,15 @@ Before delivering, verify every item. This is not optional — a digest that fai
 - Simplified text is genuinely easier to understand than the original
 
 ### Visual
-- Flowchart images are high resolution and readable
-- Mind map color coding is consistent
-- PDF formatting is clean (no overflow, no cut-off images)
+- Flowchart images are rendered at 2x (retina) resolution and readable at 100% zoom
+- Mind map color coding uses only the semantic roles from `references/design-system.md` — no arbitrary colors
+- All cards use the `grid-template-columns: 4px 1fr` accent strip pattern — no `border-left` tricks
+- All text passes contrast verification: body ≥ 4.5:1, large headings ≥ 3:1
+- No nested cards anywhere in the output
+- No animation gates content visibility — initial state is always visible
+- `prefers-reduced-motion` fallback is present for every animation
+- HTML output loads Inter and JetBrains Mono from Google Fonts with preconnect
+- PDF output uses the OKLCH-approximate hex tokens from design-system.md §8 — no improvised colors
 
 ### Run the helper script for stats
 ```bash
@@ -615,6 +627,7 @@ Resolve skill paths dynamically from the skill directory structure. Never hardco
 
 These rules are match-and-refuse. If you are about to do any of these, rewrite the output.
 
+### Clinical Content Bans
 - **Invented content.** Every pearl, trap, and atom must be derivable from the source document. No external knowledge insertion.
 - **Rounded numbers.** A cutoff of 126 mg/dL is not "about 125." A dose of 4.5 hours is not "about 4 hours." Precision is non-negotiable.
 - **Self-referential atoms.** An atom that says "see above" or "as mentioned previously" is not atomic. Rewrite it to be self-contained.
@@ -622,6 +635,21 @@ These rules are match-and-refuse. If you are about to do any of these, rewrite t
 - **Overstuffed mind maps.** A mind map with more than 3 levels of depth is unreadable. Split it into sub-maps.
 - **Contrived traps.** A trap that no real exam would use is noise. Every trap must represent an actual exam pattern from the trap archetype catalog.
 - **Shallow pearls.** A pearl without context is trivia. Every pearl must include when it matters clinically.
+
+### Visual Design Bans (from design-system.md §9)
+- **Raw hex colors in flowchart nodes.** Use classDef classes only (`:::emergency`, `:::decision`, etc.).
+- **`border-left` card accents.** Use the `grid-template-columns: 4px 1fr` pattern exclusively.
+- **Nested cards.** Never place a card inside another card.
+- **Gray text on colored backgrounds.** Use the hue's own darker shade instead.
+- **More than 7 L1 branches on a mind map.** Split into multiple maps.
+- **Unlabeled Yes/No edges in flowcharts.** Every decision branch must be labeled.
+- **Flowchart nodes with > 12 words.** Trim or split the node.
+- **Mind map deeper than 3 levels.** Create a named sub-map.
+- **Animations that gate content visibility.** Default state is always visible; animation enhances, never blocks.
+- **Bounce or elastic easing.** Use `cubic-bezier(0.16, 1, 0.3, 1)` (ease-out-quint) only.
+- **Missing `prefers-reduced-motion`.** Every animation must have a reduced-motion fallback.
+- **All-caps body copy.** Uppercase labels only (≤ 4 words), never paragraph text.
+- **Improvised spacing values.** Use only the `--space-N` scale tokens from the design system.
 
 ---
 
@@ -758,16 +786,17 @@ Total: 7 matches across all pillars
 med-pdf-digest/
 ├── SKILL.md                                This file
 ├── references/
+│   ├── design-system.md                    Visual design system — OKLCH tokens, typography, layout, flowchart/mind map spec ← NEW
 │   ├── extraction-prompt.md                LLM extraction prompt template
 │   ├── flowchart-patterns.md               Clinical flowchart Mermaid templates
 │   ├── mcq-trap-patterns.md                MCQ trap archetype catalog
 │   ├── clinical-pearls-guide.md            Pearl extraction heuristics
-│   └── drug-extraction.md                  Drug/pharmacology extraction guide  ← NEW
+│   └── drug-extraction.md                  Drug/pharmacology extraction guide
 ├── scripts/
 │   ├── generate_digest.py                  Orchestration helper (merge, validate, build)
-│   ├── extract_content.py                  Anthropic API extraction script          ← NEW
-│   ├── make_flashcards.py                  Anki/Quizlet/Markdown flashcard exporter ← NEW
-│   └── pipeline.sh                         End-to-end automation shell script       ← NEW
+│   ├── extract_content.py                  Anthropic API extraction script
+│   ├── make_flashcards.py                  Anki/Quizlet/Markdown flashcard exporter
+│   └── pipeline.sh                         End-to-end automation shell script
 └── evals/
     └── evals.json                          Test cases
 ```
